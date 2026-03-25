@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zoom YTJ Analyzer — Be10x</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c28;
+    --border: #2a2a3d;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --accent3: #43e97b;
+    --text: #f0f0f8;
+    --text-muted: #7a7a9a;
+    --text-dim: #4a4a6a;
+    --radius: 16px;
+    --glow: 0 0 40px rgba(108,99,255,0.15);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(108,99,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(108,99,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 48px 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 56px;
+    animation: fadeDown 0.6s ease both;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(108,99,255,0.12);
+    border: 1px solid rgba(108,99,255,0.3);
+    color: var(--accent);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 100px;
+    margin-bottom: 20px;
+  }
+  .badge::before { content: '◉'; font-size: 8px; }
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(36px, 6vw, 60px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, #f0f0f8 30%, #6c63ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+  }
+  .subtitle {
+    color: var(--text-muted);
+    font-size: 15px;
+    font-weight: 300;
+    letter-spacing: 0.3px;
+  }
+
+  /* Upload cards */
+  .upload-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 600px) { .upload-grid { grid-template-columns: 1fr; } }
+
+  .upload-card {
+    background: var(--surface);
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 28px 24px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+    animation: fadeUp 0.5s ease both;
+  }
+  .upload-card:nth-child(2) { animation-delay: 0.08s; }
+  .upload-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 0%, rgba(108,99,255,0.07), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .upload-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--glow); }
+  .upload-card:hover::before { opacity: 1; }
+  .upload-card.has-file { border-style: solid; border-color: var(--accent3); background: rgba(67,233,123,0.04); }
+  .upload-card.has-file::before { background: radial-gradient(circle at 50% 0%, rgba(67,233,123,0.06), transparent 70%); opacity: 1; }
+
+  .card-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    margin-bottom: 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+  }
+  .upload-card.has-file .card-icon { background: rgba(67,233,123,0.1); border-color: rgba(67,233,123,0.3); }
+  .card-label {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .card-hint {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+  }
+  .file-name {
+    font-size: 12px;
+    color: var(--accent3);
+    font-family: 'DM Mono', monospace;
+    margin-top: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .file-input { display: none; }
+
+  /* Required pill */
+  .req-pill {
+    position: absolute;
+    top: 16px; right: 16px;
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    background: rgba(255,101,132,0.12);
+    color: var(--accent2);
+    border: 1px solid rgba(255,101,132,0.25);
+    padding: 3px 8px;
+    border-radius: 100px;
+  }
+  .upload-card.has-file .req-pill {
+    background: rgba(67,233,123,0.1);
+    color: var(--accent3);
+    border-color: rgba(67,233,123,0.3);
+  }
+
+  /* Process button */
+  .btn-process {
+    width: 100%;
+    padding: 18px;
+    background: linear-gradient(135deg, var(--accent), #a855f7);
+    border: none;
+    border-radius: var(--radius);
+    color: white;
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 24px;
+    animation: fadeUp 0.5s 0.2s ease both;
+  }
+  .btn-process::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .btn-process:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(108,99,255,0.4); }
+  .btn-process:hover::before { opacity: 1; }
+  .btn-process:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-process:active { transform: translateY(0); }
+
+  /* Progress */
+  .progress-wrap {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 16px;
+    animation: fadeUp 0.3s ease both;
+  }
+  .progress-wrap.visible { display: block; }
+  .progress-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+  .progress-bar-bg {
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #a855f7);
+    border-radius: 100px;
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+
+  /* Results */
+  .results-section {
+    display: none;
+    animation: fadeUp 0.5s ease both;
+  }
+  .results-section.visible { display: block; }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 500px) { .stats-grid { grid-template-columns: 1fr; } }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+  }
+  .stat-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 4px;
+  }
+  .stat-num.blue { color: var(--accent); }
+  .stat-num.red { color: var(--accent2); }
+  .stat-num.green { color: var(--accent3); }
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Download button */
+  .btn-download {
+    width: 100%;
+    padding: 16px;
+    background: rgba(67,233,123,0.1);
+    border: 1.5px solid rgba(67,233,123,0.35);
+    border-radius: var(--radius);
+    color: var(--accent3);
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .btn-download:hover { background: rgba(67,233,123,0.18); transform: translateY(-2px); }
+
+  /* Preview table */
+  .preview-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .preview-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .preview-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .preview-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+  }
+  th {
+    background: var(--surface2);
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 9px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: #c8c8e0;
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(108,99,255,0.05); }
+
+  /* Reset */
+  .btn-reset {
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-reset:hover { border-color: var(--text-muted); color: var(--text); }
+
+  /* Error */
+  .error-box {
+    display: none;
+    background: rgba(255,101,132,0.08);
+    border: 1px solid rgba(255,101,132,0.25);
+    border-radius: 10px;
+    padding: 14px 18px;
+    color: var(--accent2);
+    font-size: 13px;
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 16px;
+  }
+  .error-box.visible { display: block; }
+
+  /* Animations */
+  @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="badge">Be10x Internal Tool</div>
+    <h1>YTJ Analyzer</h1>
+    <p class="subtitle">Upload Zoom data + Registration CSV → Download "Yet to Join" report instantly</p>
+  </div>
+
+  <!-- Upload Cards -->
+  <div class="upload-grid">
+    <div class="upload-card" id="card1" onclick="document.getElementById('zoomInput').click()">
+      <div class="req-pill" id="pill1">Required</div>
+      <div class="card-icon">📋</div>
+      <div class="card-label">File 1</div>
+      <div class="card-title">Zoom Data File</div>
+      <div class="card-hint">Contains Phone, emailid columns</div>
+      <div class="file-name" id="zoomFileName"></div>
+      <input type="file" class="file-input" id="zoomInput" accept=".csv">
+    </div>
+
+    <div class="upload-card" id="card2" onclick="document.getElementById('regInput').click()">
+      <div class="req-pill" id="pill2">Required</div>
+      <div class="card-icon">📝</div>
+      <div class="card-label">File 2</div>
+      <div class="card-title">Zoom Registration File</div>
+      <div class="card-hint">Contains Phone, Email columns</div>
+      <div class="file-name" id="regFileName"></div>
+      <input type="file" class="file-input" id="regInput" accept=".csv">
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- Process Button -->
+  <button class="btn-process" id="processBtn" onclick="processFiles()" disabled>
+    ⚡ Generate Yet to Join Report
+  </button>
+
+  <!-- Progress -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-label" id="progressLabel">Initializing...</div>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+  </div>
+
+  <!-- Results -->
+  <div class="results-section" id="resultsSection">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-num blue" id="statTotal">0</div>
+        <div class="stat-label">Total Registered</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num green" id="statJoined">0</div>
+        <div class="stat-label">Matched / Joined</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num red" id="statYTJ">0</div>
+        <div class="stat-label">Yet to Join</div>
+      </div>
+    </div>
+
+    <button class="btn-download" id="downloadBtn" onclick="downloadCSV()">
+      ⬇ Download Yet to Join CSV
+    </button>
+
+    <div class="preview-card">
+      <div class="preview-header">
+        <div class="preview-title">Preview — First 10 rows</div>
+        <div class="preview-count" id="previewCount"></div>
+      </div>
+      <div class="table-wrap">
+        <table id="previewTable"></table>
+      </div>
+    </div>
+
+    <button class="btn-reset" onclick="resetTool()">↺ Start Over</button>
+  </div>
+
+</div>
+
+<script>
+let zoomData = null;
+let regData = null;
+let ytjRows = [];
+let ytjHeaders = [];
+
+// File input handlers
+document.getElementById('zoomInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  readFile(file, 'zoom');
+});
+document.getElementById('regInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  readFile(file, 'reg');
+});
+
+function readFile(file, type) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    if (type === 'zoom') {
+      zoomData = text;
+      document.getElementById('zoomFileName').textContent = '✓ ' + file.name;
+      document.getElementById('card1').classList.add('has-file');
+      document.getElementById('pill1').textContent = '✓ Loaded';
+    } else {
+      regData = text;
+      document.getElementById('regFileName').textContent = '✓ ' + file.name;
+      document.getElementById('card2').classList.add('has-file');
+      document.getElementById('pill2').textContent = '✓ Loaded';
+    }
+    checkReady();
+  };
+  reader.readAsText(file);
+}
+
+function checkReady() {
+  document.getElementById('processBtn').disabled = !(zoomData && regData);
+}
+
+// CSV parser (handles quoted fields)
+function parseCSV(text) {
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const result = [];
+  for (let line of lines) {
+    if (!line.trim()) continue;
+    const row = [];
+    let inQuote = false, cur = '';
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQuote = !inQuote; }
+      else if (c === ',' && !inQuote) { row.push(cur.trim()); cur = ''; }
+      else { cur += c; }
+    }
+    row.push(cur.trim());
+    result.push(row);
+  }
+  return result;
+}
+
+function setProgress(pct, label) {
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = label;
+}
+
+async function processFiles() {
+  hideError();
+  document.getElementById('progressWrap').classList.add('visible');
+  document.getElementById('resultsSection').classList.remove('visible');
+  document.getElementById('processBtn').disabled = true;
+
+  await sleep(50);
+  setProgress(10, 'Parsing Zoom data file...');
+  await sleep(100);
+
+  // ── Parse Zoom Data File ──────────────────────────────
+  const zoomRows = parseCSV(zoomData);
+  if (zoomRows.length < 2) { showError('Zoom data file appears empty or invalid.'); return; }
+  const zoomHeaders = zoomRows[0];
+  const zoomPhoneIdx = findColIndex(zoomHeaders, ['phone']);
+  const zoomEmailIdx = findColIndex(zoomHeaders, ['emailid', 'email']);
+
+  if (zoomPhoneIdx === -1 || zoomEmailIdx === -1) {
+    showError('Zoom data file must have "Phone" and "emailid" (or "email") columns.'); return;
+  }
+
+  setProgress(30, 'Parsing registration file...');
+  await sleep(100);
+
+  // ── Parse Registration File ───────────────────────────
+  // Find the "Attendee Details" header line
+  const regLines = regData.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  let dataStartIdx = 0;
+  for (let i = 0; i < regLines.length; i++) {
+    if (regLines[i].trim().toLowerCase().startsWith('first name') ||
+        regLines[i].trim().toLowerCase().startsWith('email')) {
+      dataStartIdx = i;
+      break;
+    }
+    // Also check if it's a header row by looking for "Phone" or "Email"
+    const cols = regLines[i].split(',').map(c => c.replace(/"/g,'').trim().toLowerCase());
+    if (cols.includes('phone') || cols.includes('email')) {
+      dataStartIdx = i;
+      break;
+    }
+  }
+
+  const regCSV = regLines.slice(dataStartIdx).join('\n');
+  const regRows = parseCSV(regCSV);
+  if (regRows.length < 2) { showError('Registration file appears empty or has unexpected format.'); return; }
+
+  const regHeaders = regRows[0];
+  const regPhoneIdx = findColIndex(regHeaders, ['phone']);
+  const regEmailIdx = findColIndex(regHeaders, ['email']);
+
+  if (regPhoneIdx === -1 || regEmailIdx === -1) {
+    showError('Registration file must have "Phone" and "Email" columns.'); return;
+  }
+
+  setProgress(55, 'Cleaning phone numbers...');
+  await sleep(100);
+
+  // ── Build registration lookup sets ───────────────────
+  const regPhoneSet = new Set();
+  const regEmailSet = new Set();
+
+  for (let i = 1; i < regRows.length; i++) {
+    const row = regRows[i];
+    if (!row || row.length < 2) continue;
+
+    // Clean phone: remove non-digits, take last 10
+    let phone = (row[regPhoneIdx] || '').replace(/[^0-9]/g, '');
+    if (phone.length >= 10) phone = phone.slice(-10);
+    if (phone) regPhoneSet.add(phone);
+
+    // Email: lowercase trim
+    const email = (row[regEmailIdx] || '').toLowerCase().trim();
+    if (email) regEmailSet.add(email);
+  }
+
+  setProgress(75, 'Matching records...');
+  await sleep(100);
+
+  // ── Find YTJ rows ─────────────────────────────────────
+  ytjHeaders = zoomHeaders;
+  ytjRows = [];
+
+  for (let i = 1; i < zoomRows.length; i++) {
+    const row = zoomRows[i];
+    if (!row || row.length < 2) continue;
+
+    const zPhone = (row[zoomPhoneIdx] || '').replace(/[^0-9]/g, '').slice(-10);
+    const zEmail = (row[zoomEmailIdx] || '').toLowerCase().trim();
+
+    const phoneMatched = zPhone && regPhoneSet.has(zPhone);
+    const emailMatched = zEmail && regEmailSet.has(zEmail);
+
+    // Keep row only if NEITHER phone nor email matched
+    if (!phoneMatched && !emailMatched) {
+      ytjRows.push(row);
+    }
+  }
+
+  setProgress(95, 'Building report...');
+  await sleep(100);
+
+  // ── Stats ──────────────────────────────────────────────
+  const totalZoom = zoomRows.length - 1;
+  const matched = totalZoom - ytjRows.length;
+
+  document.getElementById('statTotal').textContent = totalZoom.toLocaleString();
+  document.getElementById('statJoined').textContent = matched.toLocaleString();
+  document.getElementById('statYTJ').textContent = ytjRows.length.toLocaleString();
+
+  setProgress(100, 'Done!');
+  await sleep(200);
+
+  // ── Preview table ──────────────────────────────────────
+  buildPreviewTable();
+
+  document.getElementById('progressWrap').classList.remove('visible');
+  document.getElementById('resultsSection').classList.add('visible');
+  document.getElementById('processBtn').disabled = false;
+}
+
+function buildPreviewTable() {
+  const preview = ytjRows.slice(0, 10);
+  const count = ytjRows.length;
+  document.getElementById('previewCount').textContent = `${count.toLocaleString()} total rows`;
+
+  let html = '<thead><tr>';
+  for (const h of ytjHeaders) html += `<th>${escHtml(h)}</th>`;
+  html += '</tr></thead><tbody>';
+  for (const row of preview) {
+    html += '<tr>';
+    for (let i = 0; i < ytjHeaders.length; i++) html += `<td>${escHtml(row[i] || '')}</td>`;
+    html += '</tr>';
+  }
+  html += '</tbody>';
+  document.getElementById('previewTable').innerHTML = html;
+}
+
+function downloadCSV() {
+  let csv = ytjHeaders.map(quoteCSV).join(',') + '\n';
+  for (const row of ytjRows) {
+    csv += row.map(quoteCSV).join(',') + '\n';
+  }
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const d = new Date();
+  a.download = `YTJ_Report_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function resetTool() {
+  zoomData = null; regData = null; ytjRows = []; ytjHeaders = [];
+  ['card1','card2'].forEach(id => document.getElementById(id).classList.remove('has-file'));
+  document.getElementById('zoomFileName').textContent = '';
+  document.getElementById('regFileName').textContent = '';
+  document.getElementById('pill1').textContent = 'Required';
+  document.getElementById('pill2').textContent = 'Required';
+  document.getElementById('zoomInput').value = '';
+  document.getElementById('regInput').value = '';
+  document.getElementById('resultsSection').classList.remove('visible');
+  document.getElementById('progressWrap').classList.remove('visible');
+  hideError();
+  checkReady();
+}
+
+// Helpers
+function findColIndex(headers, names) {
+  for (let i = 0; i < headers.length; i++) {
+    const h = headers[i].toLowerCase().replace(/[^a-z]/g,'');
+    if (names.some(n => h === n || h.includes(n))) return i;
+  }
+  return -1;
+}
+function showError(msg) {
+  const el = document.getElementById('errorBox');
+  el.textContent = '⚠ ' + msg;
+  el.classList.add('visible');
+  document.getElementById('progressWrap').classList.remove('visible');
+  document.getElementById('processBtn').disabled = false;
+}
+function hideError() { document.getElementById('errorBox').classList.remove('visible'); }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function quoteCSV(v) { v = String(v||''); return (v.includes(',') || v.includes('"') || v.includes('\n')) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+</script>
+</body>
+</html>
